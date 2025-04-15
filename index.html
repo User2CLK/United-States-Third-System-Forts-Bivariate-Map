@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Third System American Coastal Forts on the Atlantic and Gulf Coasts</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.0/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"/><!-- Font Awesome for icons -->
+    <style>
+        html, body, #map { width: 100%; height: 100%; margin: 0; background: #fff; }
+        .legend {
+            line-height: 40px;
+            font-size: 16px;
+            width: 190px;
+            color: #333333;
+            padding: 6px 8px;
+            background: white;
+            background: rgba(255,255,255,0.5);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+            font-family: 'Georgia', serif;
+        }
+        .legend i {
+            width: 20px;
+            height: 20px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.9;
+        }
+        .legend img {
+            width: 16px;
+            height: 16px;
+            margin-right: 3px;
+            float: left;
+        }
+        .legend p {
+            font-size: 14px;
+            line-height: 20px;
+            margin: 0;
+        }
+        .marker-color-1 { color: #CC6CE7; font-size: 20px; text-shadow: 0 0 3px #ffffff; }
+        .marker-color-2 { color: #FE9900; font-size: 20px; text-shadow: 0 0 3px #ffffff; }
+        .marker-color-3 { color: #F0D258; font-size: 20px; text-shadow: 0 0 3px #ffffff; }
+        .marker-color-4 { color: #6A6969; font-size: 20px; text-shadow: 0 0 3px #ffffff; }
+        .marker-color-5 { color: #228b22; font-size: 20px; text-shadow: 0 0 3px #ffffff; }
+    </style>
+
+    <link href="https://fonts.googleapis.com/css?family=Titillium+Web" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.7.0/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/1.3.4/chroma.min.js"></script>
+</head>
+<body>
+    <!-- Our web map and content will go here -->
+    <div id="map"></div>
+    <script>
+        // 1. Create a map object.
+        var coastymap = L.map('map', {
+            center: [35.88217879819854, -77.79032877580809], // Center map on East Coast
+            zoom: 4.25, // Zoom level
+            maxZoom: 18, // Maximum zoom level
+            minZoom: 4, // Minimum zoom level
+            detectRetina: true // Retina display support
+        });
+
+        // 2. Add a base map (satellite imagery from Stadia Maps).
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.{ext}', {
+            minZoom: 0,
+            maxZoom: 18,
+            attribution: '&copy; CNES, Distribution Airbus DS, © Airbus DS, © PlanetObserver (Contains Copernicus Data) | &copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            ext: 'jpg'
+        }).addTo(coastymap);
+
+        // 3. Define color scale using chroma.js
+        var colors = chroma.scale('Dark2').mode('lch').colors(5); // 5 colors for 5 regions
+
+  // 5. dynamically append style classes to this page. The style classes will be used to shade the markers.
+// We can use a for loop to do this.
+for (i = 0; i < 5; i++) {
+    $('head').append($("<style> .marker-color-" + (i + 1).toString() + " { color: " + colors[i] + "; font-size: 15px; text-shadow: 0 0 3px #ffffff;} </style>"));
+}
+//calling geojson points file
+fort_points = L.geoJson.ajax("/assets/fortmap.geojson",{
+
+ // The content of the popup window is the value of `n`,`l`, and `r` from the geojson file.
+ // The `n` property is the name of the fort, `l` is the location, and `r` is the region.
+ onEachFeature: function (feature, layer) {
+     layer.bindPopup(
+     "Name: " + feature.properties.n + "<br>" + 
+     "Location: " + feature.properties.l + "<br>" +          
+     "Region: " + feature.properties.r + "<br>"
+    );
+ },
+ // Set the icon for each point based on the region property
+ // The icon is a Font Awesome chess rook icon with different colors for each region the fort is in on the East Coast
+ pointToLayer: function(feature, latlng) {
+     var id = 0;
+     
+     if (feature.properties.r == "New England")  { id = 1; }
+     else if (feature.properties.r =="Mid-Atlantic"){id = 2; }
+     else if (feature.properties.r =="Upper South"){id = 3; }
+     else if (feature.properties.r =="Lower South"){id = 4; }
+     else { id = 0;} // All values from r variable which falls into the Gulf Coast region
+     return L.marker(latlng, {
+        icon: L.divIcon({
+            className: 'fa-solid fa-chess-rook marker-color-' + (id + 1).toString(),//chess rook icon
+        iconSize: [20, 20], // Adjust icon size as needed
+        })
+    });
+ },
+ filter: function(feature) {
+    return feature.geometry.type === "Point";
+ }
+}).addTo(coastymap);
+
+//Choropleth mapping code
+        colors = chroma.scale('Reds').colors(5); //5 colors of reds for the fno property values 0 through 4
+        // 6. Function to set color based on density value (fno property)
+        // The fno property is a numeric value representing the number of forts in each state
+function setColor(density) {
+    var id = 0;
+    if (density == 4) { id = 4; } 
+    else if (density == 3) { id = 3; } 
+    else if (density == 2) { id = 2; }
+    else if (density == 1) { id = 1; }
+    else  { id = 0; }
+    return colors[id];
+}
+
+//Style function that sets fill color property based on fno property
+function style(feature) {
+    return {
+        fillColor: setColor(feature.properties.fno),
+        fillOpacity: 0.5,
+        weight: 2,
+        opacity: 1,
+        color: '#b4b4b4',
+        dashArray: '4'
+    };
+}
+        //State boundaries layer
+        L.geoJson.ajax("/assets/fnomap.geojson", {
+            style: style
+        }).addTo(coastymap);
+
+        //Leaflet Control for Legend
+        var legend = L.control({position: 'bottomright'});
+
+        //Function to create legend content
+        legend.onAdd = function () {
+            var div = L.DomUtil.create('div', 'legend');
+            div.innerHTML += '<b>Third System Forts per State</b><br />';
+            div.innerHTML += '<i style="background: ' + colors[4] + '; opacity: 0.5"></i><p>4</p>';
+            div.innerHTML += '<i style="background: ' + colors[3] + '; opacity: 0.5"></i><p>3</p>';
+            div.innerHTML += '<i style="background: ' + colors[2] + '; opacity: 0.5"></i><p>2</p>';
+            div.innerHTML += '<i style="background: ' + colors[1] + '; opacity: 0.5"></i><p>1</p>';
+            div.innerHTML += '<i style="background: ' + colors[0] + '; opacity: 0.5"></i><p>0</p>';
+            div.innerHTML += '<hr><b>Fort Location Region<b><br />';
+            div.innerHTML += '<i class="fa-solid fa-chess-rook" style="color: #CC6CE7;"></i><p>New England Coast</p>';
+            div.innerHTML += '<i class="fa-solid fa-chess-rook" style="color: #FE9900;"></i><p>Mid-Atlantic Coast</p>';
+            div.innerHTML += '<i class="fa-solid fa-chess-rook" style="color: #F0D258;"></i><p>Upper South Coast</p>';
+            div.innerHTML += '<i class="fa-solid fa-chess-rook" style="color: #6A6969;"></i><p>Lower South Coast</p>';
+            div.innerHTML += '<i class="fa-solid fa-chess-rook" style="color: #228b22;"></i><p>Gulf Coast</p>';
+            return div;
+        };
+
+        //Add legend to map
+        legend.addTo(coastymap);
+
+        //Add scale bar to map
+        L.control.scale({position: 'bottomleft'}).addTo(coastymap);
+    </script>
+</body>
+</html>
